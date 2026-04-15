@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>今日穿搭籤｜台灣降雨版</title>
+  <style>
+    :root{
+      --bg:#130f1f;
+      --panel:#1d1730;
+      --panel2:#2a2144;
+      --text:#f5f3ff;
+      --muted:#c4b5fd;
+      --accent:#f59e0b;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:"Noto Sans TC", -apple-system, BlinkMacSystemFont, sans-serif;
+      background:radial-gradient(circle at 20% -10%,#3b2d68 0%,var(--bg) 48%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:24px 14px 40px;
+    }
+    .wrap{width:100%;max-width:780px}
+    .title{font-size:30px;font-weight:900;margin:4px 0}
+    .subtitle{color:var(--muted);margin:0 0 16px}
+    .panel{
+      background:rgba(29,23,48,.9);
+      border:1px solid rgba(196,181,253,.25);
+      border-radius:18px;
+      padding:14px;
+      backdrop-filter:blur(6px);
+    }
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    select,button{
+      border-radius:10px;
+      border:1px solid rgba(196,181,253,.35);
+      padding:10px 12px;
+      font-size:15px;
+      color:var(--text);
+      background:var(--panel2);
+    }
+    select{min-width:190px;flex:1}
+    button{
+      cursor:pointer;
+      border:none;
+      background:linear-gradient(135deg,#f59e0b,#f97316);
+      font-weight:800;
+      color:#1f1300;
+    }
+
+    .oracle-wrap{perspective:1200px;margin-top:12px}
+    .card{
+      width:100%;
+      min-height:360px;
+      position:relative;
+      transform-style:preserve-3d;
+      transition:transform .7s ease;
+    }
+    .card.flipped{transform:rotateY(180deg)}
+    .face{
+      position:absolute;inset:0;
+      border-radius:16px;
+      border:1px solid rgba(196,181,253,.25);
+      padding:18px;
+      backface-visibility:hidden;
+    }
+    .front{
+      background:linear-gradient(160deg,#2f2250,#21193a);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      gap:8px;
+    }
+    .front .big{font-size:54px}
+    .front .hint{color:#ddd6fe}
+
+    .back{
+      transform:rotateY(180deg);
+      background:linear-gradient(160deg,#231a3b,#161024);
+    }
+    .meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 10px}
+    .meta .item{background:rgba(42,33,68,.7);border:1px solid rgba(196,181,253,.25);border-radius:10px;padding:10px}
+    .k{font-size:12px;color:#c4b5fd}
+    .v{font-size:21px;font-weight:800}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}
+    .ok{background:rgba(34,197,94,.18);color:#86efac}
+    .warn{background:rgba(245,158,11,.2);color:#fdba74}
+    .danger{background:rgba(239,68,68,.2);color:#fca5a5}
+    .tips{display:grid;gap:8px}
+    .tip{background:rgba(42,33,68,.55);border:1px solid rgba(196,181,253,.16);border-radius:10px;padding:10px;line-height:1.45}
+    .status{margin-top:10px;color:#c4b5fd;min-height:22px}
+    .footer{margin-top:10px;color:#a78bfa;font-size:12px}
+    @media (max-width:560px){.title{font-size:24px}.meta{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1 class="title">🎴 今日穿搭籤（台灣降雨版）</h1>
+    <p class="subtitle">像抽卡一樣，抽出今天該怎麼穿，特別針對台灣下雨天。</p>
+
+    <section class="panel">
+      <div class="row">
+        <select id="city"></select>
+        <button id="drawBtn">抽今日穿搭籤</button>
+      </div>
+
+      <div class="oracle-wrap">
+        <article class="card" id="card">
+          <section class="face front">
+            <div class="big">☯️</div>
+            <div>請安，今日天象已備妥。</div>
+            <div class="hint">按下「抽今日穿搭籤」翻牌。</div>
+          </section>
+          <section class="face back">
+            <h3 id="cityTitle" style="margin:0 0 6px">台北市｜今日籤文</h3>
+            <div class="meta">
+              <div class="item"><div class="k">降雨機率</div><div class="v" id="rainProb">-</div></div>
+              <div class="item"><div class="k">雨量</div><div class="v" id="rainAmount">-</div></div>
+              <div class="item"><div class="k">溫度</div><div class="v" id="temp">-</div></div>
+              <div class="item"><div class="k">今日分級</div><div class="v" id="level">-</div></div>
+            </div>
+            <div class="tips" id="tips"></div>
+          </section>
+        </article>
+      </div>
+
+      <div class="status" id="status">等你翻牌。</div>
+      <div class="footer">資料來源：Open-Meteo（免 API Key）</div>
+    </section>
+  </main>
+
+  <script>
+    const CITIES = {
+      "台北市": { lat: 25.033, lon: 121.5654 },
+      "新北市": { lat: 25.013, lon: 121.465 },
+      "桃園市": { lat: 24.993, lon: 121.301 },
+      "台中市": { lat: 24.1477, lon: 120.6736 },
+      "台南市": { lat: 22.9999, lon: 120.227 },
+      "高雄市": { lat: 22.6273, lon: 120.3014 },
+      "新竹市": { lat: 24.8138, lon: 120.9675 },
+      "嘉義市": { lat: 23.48, lon: 120.4491 },
+      "宜蘭縣": { lat: 24.7021, lon: 121.7378 },
+      "花蓮縣": { lat: 23.9872, lon: 121.6015 },
+      "台東縣": { lat: 22.7583, lon: 121.1444 },
+      "屏東縣": { lat: 22.5519, lon: 120.5488 }
+    };
+
+    const cityEl = document.getElementById("city");
+    const cardEl = document.getElementById("card");
+    const statusEl = document.getElementById("status");
+    const tipsEl = document.getElementById("tips");
+
+    Object.keys(CITIES).forEach(city => {
+      const option = document.createElement("option");
+      option.value = city;
+      option.textContent = city;
+      cityEl.appendChild(option);
+    });
+    cityEl.value = "台北市";
+
+    function getRainLevel(prob, amount) {
+      if (prob >= 70 || amount >= 20) return { label: "大雨警戒", cls: "danger" };
+      if (prob >= 40 || amount >= 5) return { label: "備傘穩妥", cls: "warn" };
+      return { label: "輕裝可行", cls: "ok" };
+    }
+
+    function advice(prob, amount, tMax, tMin, level) {
+      const tips = [];
+      if (level.cls === "danger") {
+        tips.push("☔ 籤曰：雨勢不輕。請帶傘 + 輕薄雨衣，包包務必防水。");
+        tips.push("👟 腳下宜防潑水鞋，今天別派白帆布上戰場。");
+      } else if (level.cls === "warn") {
+        tips.push("🌦️ 籤曰：午後有變。折疊傘隨身，快乾外套優先。");
+        tips.push("🧦 可備一雙替換襪，濕了也不狼狽。");
+      } else {
+        tips.push("🌤️ 籤曰：雨意不重。可輕便穿搭，視行程決定帶傘。");
+      }
+      if (tMax >= 32) tips.push("🔥 高溫提醒：上衣選透氣排汗，避開厚重單品。");
+      if (tMin <= 18) tips.push("🧥 早晚偏涼：加薄外套，保暖但不悶熱。");
+      if (prob >= 60 && tMax >= 30) tips.push("💧 悶熱帶雨：寬鬆剪裁最舒服。");
+      tips.push(`📌 今日數據：降雨機率 ${prob}%／雨量 ${amount.toFixed(1)} mm。`);
+      return tips;
+    }
+
+    async function drawCard() {
+      const city = cityEl.value;
+      const { lat, lon } = CITIES[city];
+      statusEl.textContent = `正在請 ${city} 的天象...`;
+
+      try {
+        const url = new URL("https://api.open-meteo.com/v1/forecast");
+        url.searchParams.set("latitude", lat);
+        url.searchParams.set("longitude", lon);
+        url.searchParams.set("timezone", "Asia/Taipei");
+        url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max");
+        url.searchParams.set("forecast_days", "1");
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const d = data.daily;
+
+        const prob = d.precipitation_probability_max?.[0] ?? 0;
+        const amount = d.precipitation_sum?.[0] ?? 0;
+        const tMax = d.temperature_2m_max?.[0] ?? 0;
+        const tMin = d.temperature_2m_min?.[0] ?? 0;
+        const level = getRainLevel(prob, amount);
+
+        document.getElementById("cityTitle").textContent = `${city}｜今日穿搭籤`;
+        document.getElementById("rainProb").textContent = `${prob}%`;
+        document.getElementById("rainAmount").textContent = `${amount.toFixed(1)} mm`;
+        document.getElementById("temp").textContent = `${Math.round(tMax)}° / ${Math.round(tMin)}°`;
+        document.getElementById("level").innerHTML = `<span class="badge ${level.cls}">${level.label}</span>`;
+
+        tipsEl.innerHTML = advice(prob, amount, tMax, tMin, level).map(t => `<div class="tip">${t}</div>`).join("");
+
+        cardEl.classList.remove("flipped");
+        requestAnimationFrame(() => setTimeout(() => cardEl.classList.add("flipped"), 80));
+        statusEl.textContent = `翻牌完成（${new Date().toLocaleTimeString("zh-TW", { hour12: false })}）`;
+      } catch (e) {
+        statusEl.textContent = "請神失敗，稍後再抽一次。";
+        tipsEl.innerHTML = `<div class="tip">⚠️ ${String(e.message || e)}</div>`;
+        cardEl.classList.add("flipped");
+      }
+    }
+
+    document.getElementById("drawBtn").addEventListener("click", drawCard);
+  </script>
+</body>
+</html>
